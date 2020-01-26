@@ -1,7 +1,7 @@
 #include "reduce_by_key.cuh"
 
 #define TB_SIZE 256
-#define MAX_K 3
+#define MAX_K 4
 
 using std::cout;
 using std::endl;
@@ -47,13 +47,14 @@ __global__ void my_reduce_by_key_kernel(int n, int k, int *keys, float3 *values,
     __shared__ float3 partial_sum[TB_SIZE][MAX_K];
 
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid >= n) {
-        return;
-    }
     // Initalize shared memory to zero!
     for (int i = 0; i < k; ++i) {
         partial_sum[threadIdx.x][i] = make_float3(0, 0, 0);
     }
+    if (tid >= n) {
+        return;
+    }
+    __syncthreads();
     const int key = keys[tid];  // value from 0 to k-1
     // Load elements into shared memory
     partial_sum[threadIdx.x][key] = values[tid];
@@ -82,8 +83,14 @@ __global__ void sum_reduce(int n, int k, float3 *d_almost_reduces_values, float3
     __shared__ float3 partial_sum[TB_SIZE][MAX_K];
     const int tid = threadIdx.x;
     for (int i = 0; i < k; ++i) {
-        const int pos = tid * k + i;
-        partial_sum[tid][i] = d_almost_reduces_values[pos];
+        partial_sum[tid][i] = make_float3(0, 0, 0);
+    }
+    __syncthreads();
+    if (tid < n) {
+        for (int i = 0; i < k; ++i) {
+            const int pos = tid * k + i;
+            partial_sum[tid][i] = d_almost_reduces_values[pos];
+        }
     }
     __syncthreads();
     for (int s = 1; s < blockDim.x; s <<= 1) {
@@ -105,12 +112,12 @@ void my_reduce_by_key(int n, int k, int *d_keys,
     float3* d_values, 
     float3 *d_almost_reduced_values, 
     float3 *d_output) {
-const int N_BLOCKS = (n + TB_SIZE - 1) / TB_SIZE;
-my_reduce_by_key_kernel<<<N_BLOCKS, TB_SIZE>>> (n, k, d_keys, d_values, d_almost_reduced_values);
-// if (n > TB_SIZE)
-cudaDeviceSynchronize();
-sum_reduce<<<1, TB_SIZE>>> (N_BLOCKS, k, d_almost_reduced_values, d_output);
-cudaDeviceSynchronize();
+    const int N_BLOCKS = (n + TB_SIZE - 1) / TB_SIZE;
+    my_reduce_by_key_kernel<<<N_BLOCKS, TB_SIZE>>> (n, k, d_keys, d_values, d_almost_reduced_values);
+    // if (n > TB_SIZE)
+    cudaDeviceSynchronize();
+    sum_reduce<<<1, TB_SIZE>>> (N_BLOCKS, k, d_almost_reduced_values, d_output);
+    cudaDeviceSynchronize();
 }
 
 /****************************INT VERSION*********************************/
