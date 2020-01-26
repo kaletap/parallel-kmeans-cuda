@@ -17,13 +17,16 @@ using std::vector;
 using std::cout;
 using std::endl;
 
-__device__ __host__ float3 operator+(const float3 &a, const float3 &b) {
-    return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
+
+template<typename T>
+void println(device_vector<T> d_v) {
+    host_vector<T> h_v = d_v;
+    for (int i = 0; i < h_v.size(); ++i) {
+        print(h_v[i]);
+    }
+    cout << endl;
 }
 
-void println(float3 point) {
-    cout << "float3(" << point.x << ", " << point.y << ", " << point.z << ")" << endl;
-}
 
 __device__ __host__ float euklidian_distance_squared(const float3 a, const float3 &b) {
     return (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y) + (a.z - b.z)*(a.z - b.z);
@@ -47,20 +50,24 @@ struct closer_point_tuple {
 };
 
 struct point_label : public thrust::unary_function<float3, int> {
-    device_vector<float3> *means;
-    __device__ __host__ point_label(device_vector<float3> *_means) {
-        means = _means;
+    float3 *d_means;
+    int k;
+    __device__ __host__ point_label(float3 *_d_means, int _k) {
+        d_means = _d_means;
+        k = _k;
     }
     __device__ __host__  int operator()(float3 point) {
-        counting_iterator<int> begin(0);
-        counting_iterator<int> end((*means).size());
-        tuple<int, float3> init = make_tuple(0, (*means)[0]);
-        tuple<int, float3> closest_mean_tuple;
-        closest_mean_tuple = reduce(make_zip_iterator(make_tuple(begin, means->begin())),
-                                    make_zip_iterator(make_tuple(end, means->end())),
-                                    init,
-                                    closer_point_tuple(point));
-        return get<0>(closest_mean_tuple);
+        float min_distance = FLT_MAX;
+        int label = 0;
+        // TODO: improve - write custom kernel
+        for (int i = 0; i < k; ++i) {
+            const float distance = euklidian_distance_squared(point, d_means[i]);
+            if (distance < min_distance) {
+                min_distance = distance;
+                label = i;
+            }
+        }
+        return label;
     }
 };
 
@@ -88,32 +95,48 @@ struct squared_distance_functor {
     }
 };
 
-vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float eps = 1.0e-3) {
+host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float eps = 1.0e-3) {
     const int n = points.size();
     
     device_vector<float3> d_points(points.begin(), points.end());
     device_vector<float3> means(points.begin(), points.begin() + k);  // TODO: it is necessary for means to be device vectors?
     device_vector<float3> old_means(k);
 
-    device_vector<int> _mean_keys(k);  // useless variable
     device_vector<int> labels(n);  // label of each point
 
     float3 *d_almost_reduced_values;
     cudaMalloc(&d_almost_reduced_values, n*k*sizeof(float3));
+    int *d_almost_reduced_count;
+    cudaMalloc(&d_almost_reduced_count, n*k*sizeof(int));
 
     // Creating raw pointers from thrust vectors
     int *d_labels_ptr = thrust::raw_pointer_cast(&labels[0]);
     float3 *d_points_ptr = thrust::raw_pointer_cast(&d_points[0]);
     float3* d_means_ptr = thrust::raw_pointer_cast(&means[0]);
 
+    cout << "Points: ";
+    println(d_points);
     for (int i = 0; i < max_iter; ++i) {
+        cout << "***Iteration number " << i << "***" << endl;
         old_means = means;
         // Getting closest (in terms of euklidian distance) means
-        transform(d_points.begin(), d_points.end(), labels.begin(), point_label(&means));
+        // TODO: write custom kernel for this
+        transform(d_points.begin(), d_points.end(), labels.begin(), point_label(d_means_ptr, k));
 
-        // Calculating average on labels
-        my_reduce_by_key(n, k, d_labels_ptr, d_almost_reduced_values, d_points_ptr, d_means_ptr);
+        // Calculating sum on labels
+        my_reduce_by_key(n, k, d_labels_ptr, d_points_ptr, d_almost_reduced_values, d_means_ptr);
+        cout << "Sum of points by mean: ";
+        println(means);
+        // Dividing by keys on labels (hacky implementation for my_reduce_by_key for table of ints)
+        // hence passing d_means_ptr as output
+        my_reduce_by_key(n, k, d_labels_ptr, d_almost_reduced_count, d_means_ptr);
 
+        cout << "Means: ";
+        println(means);
+        cout << "Labels: ";
+        println(labels);
+
+        // TODO: is it worth it?
         float squared_distance = transform_reduce(
             make_zip_iterator(make_tuple(old_means.begin(), means.begin())),
             make_zip_iterator(make_tuple(old_means.end(), means.end())),
@@ -123,11 +146,13 @@ vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float eps =
         );
 
         if (squared_distance < eps) {
+            cout << "***End of iterations***" << endl;
+            cout << "Convered after " << i << " iterations." << endl;
             break;
         }
     }
     
-    return vector<int>(labels.begin(), labels.end());
+    return host_vector<int>(labels.begin(), labels.end());
 }
 
 
@@ -141,8 +166,9 @@ int main() {
         {2.3, 2.4, 2.5},
     });
     auto labels = kmeans(points, 3);
+    cout << "Final labels:" << endl;
     for (int label : labels) {
-        cout << label << endl;
+        cout << label << " ";
     }
     cout << endl;
     return 0;
