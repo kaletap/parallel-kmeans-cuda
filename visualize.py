@@ -22,7 +22,6 @@ if __name__ == "__main__":
         for line in f:
             numbers = line.strip().split()
             points.append([float(num) for num in numbers])
-    print(points)
     # C++ excecutable has to be run on a GPU server and write labels to file
     with open(args.labels_file) as labels_file:
         line = labels_file.readline().strip()

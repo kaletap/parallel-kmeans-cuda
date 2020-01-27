@@ -12,6 +12,7 @@
 #include "reduce_by_key.cuh"
 
 #define OUT_FILE "labels.txt"
+#define DEFAULT_K 3
 
 //using namespace std;  you are swamped with errors after using namespace std
 using namespace thrust;
@@ -117,8 +118,8 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
     float3 *d_points_ptr = thrust::raw_pointer_cast(&d_points[0]);
     float3* d_means_ptr = thrust::raw_pointer_cast(&means[0]);
 
-    cout << "Points: ";
-    println(d_points);
+    // cout << "Points: ";
+    // println(d_points);
     for (int i = 0; i < max_iter; ++i) {
         cout << "***Iteration number " << i << "***" << endl;
         old_means = means;
@@ -128,16 +129,15 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
 
         // Calculating sum on labels
         my_reduce_by_key(n, k, d_labels_ptr, d_points_ptr, d_almost_reduced_values, d_means_ptr);
-        cout << "Sum of points by mean: ";
-        println(means);
-        // Dividing by keys on labels (hacky implementation for my_reduce_by_key for table of ints)
+
+        // Dividing by keys on labels (hacky implementation of my_reduce_by_key for table of ints)
         // hence passing d_means_ptr as output
         my_reduce_by_key(n, k, d_labels_ptr, d_almost_reduced_count, d_means_ptr);
 
-        cout << "Means: ";
-        println(means);
-        cout << "Labels: ";
-        println(labels);
+        // cout << "Means: ";
+        // println(means);
+        // cout << "Labels: ";
+        // println(labels);
 
         // TODO: is it worth it?
         float squared_distance = transform_reduce(
@@ -150,7 +150,7 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
 
         if (squared_distance < eps) {
             cout << "***End of iterations***" << endl;
-            cout << "Convered after " << i << " iterations." << endl;
+            cout << "Convered after " << i + 1 << " iterations." << endl;
             break;
         }
     }
@@ -158,7 +158,8 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
     return host_vector<int>(labels.begin(), labels.end());
 }
 
-int main() {
+int main(int argc, char **argv) {
+    int k = argc > 1 ? atoi(argv[1]) : DEFAULT_K;
     vector<float3> points;
     int n;
     cin >> n;
@@ -167,13 +168,13 @@ int main() {
         cin >> x >> y >> z;
         points.push_back(make_float3(x, y, z));
     }
-    auto labels = kmeans(points, 3);
+    cout << "Running k-means with " << n << " points and k = " << k << endl;
+    auto labels = kmeans(points, k);
     std::ofstream labels_file(OUT_FILE);
-    cout << "Final labels:" << endl;
+
     for (int label : labels) {
-        cout << label << " ";
         labels_file << label << " ";
     }
-    cout << endl;
+
     return 0;
 }
