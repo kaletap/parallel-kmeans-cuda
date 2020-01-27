@@ -11,10 +11,13 @@
 
 #include "reduce_by_key.cuh"
 
+#define OUT_FILE "labels.txt"
+
 //using namespace std;  you are swamped with errors after using namespace std
 using namespace thrust;
 using std::vector;
 using std::cout;
+using std::cin;
 using std::endl;
 
 
@@ -155,20 +158,21 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
     return host_vector<int>(labels.begin(), labels.end());
 }
 
-
 int main() {
-    vector<float3> points({
-        {1.2, 1.3, 1.4},
-        {2.3, 2.4, 2.5},
-        {2.3, 2.4, 2.4},
-        {4.3, 2.4, 2.5},
-        {2.3, 2.4, 2.5},
-        {2.3, 2.4, 2.5},
-    });
+    vector<float3> points;
+    int n;
+    cin >> n;
+    float x, y, z;
+    for (int i = 0; i < n; ++i) {
+        cin >> x >> y >> z;
+        points.push_back(make_float3(x, y, z));
+    }
     auto labels = kmeans(points, 3);
+    std::ofstream labels_file(OUT_FILE);
     cout << "Final labels:" << endl;
     for (int label : labels) {
         cout << label << " ";
+        labels_file << label << " ";
     }
     cout << endl;
     return 0;
