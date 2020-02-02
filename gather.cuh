@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 
-void calculate_mean_per_key_scatter(int n, int k, int *d_keys, float3 *d_values, float3 *d_means);
+void calculate_mean_per_key_gather(int n, int k, int *d_keys, float3 *d_values, float3 *d_means);
 
 void print(float3 point);
 

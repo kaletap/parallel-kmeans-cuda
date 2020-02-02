@@ -9,7 +9,7 @@
 #include <cassert>
 #include <bits/stdc++.h> 
 
-#include "scatter.cuh"
+#include "gather.cuh"
 
 #define OUT_FILE "labels.txt"
 #define DEFAULT_K 3
@@ -82,7 +82,7 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
         transform(d_points.begin(), d_points.end(), labels.begin(), point_label(d_means_ptr, k));
 
         // Calculating mean of points per label
-        calculate_mean_per_key_scatter(n, k, d_labels_ptr, d_points_ptr, d_means_ptr);
+        calculate_mean_per_key_gather(n, k, d_labels_ptr, d_points_ptr, d_means_ptr);
 
         float mean_squared_distance = transform_reduce(
             make_zip_iterator(make_tuple(old_means.begin(), means.begin())),
@@ -101,6 +101,10 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
     
     return host_vector<int>(labels.begin(), labels.end());
 }
+
+/*
+TODO: 
+*/
 
 int main(int argc, char **argv) {
     int k = argc > 1 ? atoi(argv[1]) : DEFAULT_K;

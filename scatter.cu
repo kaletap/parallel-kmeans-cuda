@@ -66,7 +66,7 @@ __global__ void normalize_means(int k, float3 *d_means, int* d_counts) {
     d_means[tid] /= d_counts[tid];
 }
 
-void calculate_mean_per_key(int n, int k, int *d_keys, float3 *d_values, float3 *d_means) {
+void calculate_mean_per_key_scatter(int n, int k, int *d_keys, float3 *d_values, float3 *d_means) {
     int *d_counts;
     cudaMalloc(&d_counts, k*sizeof(int));
     cudaMemset(d_counts, 0, k*sizeof(int));
