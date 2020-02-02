@@ -1,4 +1,4 @@
-#include "scatter.cuh"
+#include "gather.cuh"
 
 #define TB_SIZE 1024  // 2^9 (has to be power of 2)
 

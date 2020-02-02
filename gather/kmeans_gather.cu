@@ -94,8 +94,8 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
         ) / k;
 
         if (mean_squared_distance < eps) {
-            cout << "Converged after " << i + 1 << " iterations." << endl;
-            cout << "Result save in a file " << OUT_FILE << "." << endl;
+            cout << "Converged after " << i + 1 << " iterations.\n";
+            cout << "Result save in a file " << OUT_FILE << ".\n";
             break;
         }
     }
