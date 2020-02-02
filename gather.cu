@@ -55,12 +55,12 @@ __global__ void calculate_mean_per_key_kernel(int n, int k, int *d_keys, float3 
     // Iterating over whole array in chunks of block size (all threads are active)
     for (int i = 0; i * blockDim.x < n; ++i) {  // blockDim.x == TB_SIZE
         const int pos = i * blockDim.x + thread;
-        if (pos >= n) {
-            return;
-        }
         const int key = d_keys[pos];
         sh_partial_sum[thread] = key == block ? d_values[pos] : make_float3(0.0f, 0.0f, 0.0f);
         sh_partial_count[thread] = key == block ? 1 : 0;
+        if (pos >= n) {  // Exiting only after assigning shared memory!
+            return;
+        }   
         __syncthreads();
         // Reduce using shared memory (TB_SIZE is a power of 2),
         // better thread-index assignment, no modulo operator, less idle threads

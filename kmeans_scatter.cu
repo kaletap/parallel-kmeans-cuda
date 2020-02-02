@@ -112,8 +112,14 @@ int main(int argc, char **argv) {
         cin >> x >> y >> z;
         points.push_back(make_float3(x, y, z));
     }
+
     cout << "Running k-means with " << n << " points and k = " << k << endl;
-    auto labels = kmeans(points, k);
+    auto startTime = std::chrono::steady_clock::now();
+    auto labels = kmeans(points, k);  // Function invocation
+    auto endTime = std::chrono::steady_clock::now();
+	long duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    printf("Elapsed time for scatter GPU implementation : %li ms.\n", duration);
+
     std::ofstream labels_file(OUT_FILE);
 
     for (int label : labels) {

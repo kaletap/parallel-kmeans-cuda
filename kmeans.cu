@@ -121,7 +121,7 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
     // cout << "Points: ";
     // println(d_points);
     for (int i = 0; i < max_iter; ++i) {
-        cout << "***Iteration number " << i << "***" << endl;
+        // cout << "***Iteration number " << i << "***" << endl;
         old_means = means;
         // Getting closest (in terms of euklidian distance) means
         // TODO: write custom kernel for this
@@ -139,7 +139,6 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
         // cout << "Labels: ";
         // println(labels);
 
-        // TODO: is it worth it?
         float squared_distance = transform_reduce(
             make_zip_iterator(make_tuple(old_means.begin(), means.begin())),
             make_zip_iterator(make_tuple(old_means.end(), means.end())),
@@ -149,7 +148,6 @@ host_vector<int> kmeans(vector<float3> points, int k, int max_iter = 100, float 
         );
 
         if (squared_distance < eps) {
-            cout << "***End of iterations***" << endl;
             cout << "Convered after " << i + 1 << " iterations." << endl;
             break;
         }
@@ -168,8 +166,14 @@ int main(int argc, char **argv) {
         cin >> x >> y >> z;
         points.push_back(make_float3(x, y, z));
     }
+
     cout << "Running k-means with " << n << " points and k = " << k << endl;
-    auto labels = kmeans(points, k);
+    auto startTime = std::chrono::steady_clock::now();
+    auto labels = kmeans(points, k);  // Function invocation
+    auto endTime = std::chrono::steady_clock::now();
+	long duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    printf("Elapsed time for reduce-by-key GPU implementation : %li ms.\n", duration);
+
     std::ofstream labels_file(OUT_FILE);
 
     for (int label : labels) {
