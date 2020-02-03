@@ -27,8 +27,3 @@ if __name__ == "__main__":
         line = labels_file.readline().strip()
         labels = [int(label) for label in line.split()]
     plot_points(points, labels)
-
-
-
-
-
