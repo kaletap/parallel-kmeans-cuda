@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
     auto startTime = std::chrono::steady_clock::now();
     auto labels = kmeans(points, k);  // Function invocation
     auto endTime = std::chrono::steady_clock::now();
-	long duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    long duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
     printf("Elapsed time for scatter GPU implementation : %li ms.\n", duration);
 
     std::ofstream labels_file(OUT_FILE);
